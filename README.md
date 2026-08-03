@@ -8,7 +8,7 @@ GitHub: [knowyourmeme-js](https://github.com/MuhammadrizoDeveloper/knowyourmeme-
 
 - 🔍 **Search memes** by query with customizable result limits
 - 📖 **Get detailed meme information** including images, tags, origin, and more
-- 🚀 **Fast and lightweight** using Cheerio for HTML parsing
+- 📝 **Markdown `body`** — the full article converted to clean markdown (headings, links, images, embedded videos) for easy rendering
 - 📦 **ES6 modules** support
 - 🔵 **TypeScript** support
 - 🛡️ **Error handling** with descriptive error messages
@@ -27,7 +27,8 @@ npm install knowyourmeme-js
 import { search } from 'knowyourmeme-js';
 
 // Search for memes
-const results = await search('shrek');
+const { results, totalResults } = await search('shrek');
+console.log(`Found ${totalResults} memes`);
 console.log(results);
 ```
 
@@ -36,9 +37,9 @@ console.log(results);
 ```javascript
 import { search } from 'knowyourmeme-js';
 
-// Search with custom limit
-const results = await search('shrek', 5); // default is 10
-console.log(`Found ${results.length} results`);
+// Search with custom limit (default is 10, more than 16 results are fetched automatically)
+const { results } = await search('shrek', 5);
+console.log(`Got ${results.length} results`);
 console.log(results);
 ```
 
@@ -54,22 +55,35 @@ console.log(meme);
 
 ## API Reference
 
-### `search(query, options)`
+### `search(query, max)`
 
-Searches for memes on KnowYourMeme.com.
+Searches for memes on KnowYourMeme.com using the site's search API.
 
 **Parameters:**
 - `query` (string): Search query
-- `max` (number): Maximum number of results (default: 10)
+- `max` (number): Maximum number of results (default: 10). When `max` exceeds the page size (16), additional pages are fetched automatically.
 
-**Returns:** Promise<Array> - Promise resolving to an array of MemeResult
+**Returns:** `Promise<SearchResults>`:
+```javascript
+{
+  query: string,            // the query that was searched
+  totalResults: number,     // total matching memes on the site
+  results: MemeResult[]
+}
+```
 
-**Search Result Object:**
+**Search Result Object (MemeResult):**
 ```javascript
 {
   title: string,
   link: string,
-  thumbnail: { url: string, alt: string }
+  thumbnail: { url: string, alt: string },
+  summary?: string,     // short description
+  views: number | null,
+  nsfw: boolean,        // flagged as not-safe-for-work
+  year: number | null,  // year the meme originated
+  origin: string | null, // e.g. "Tumblr", "4chan"; null when absent
+  region: string | null, // e.g. "Japan"; null when absent
 }
 ```
 
@@ -89,15 +103,36 @@ Gets detailed information about a specific meme.
   link: string,
   image: { url: string, alt: string },
   views: number | null,
-  sections: MemeSection[],
-  googleTrends: string,
-  type: string[],
-  year: string,
-  origin: string,
-  region: string,
-  tags: string[]
+  body: string,                 // full article as markdown
+  sections: MemeSection[],      // typed content blocks grouped by heading
+  googleTrendsUrl: string | null, // Google Trends embed URL; null when none
+  imgflipUrl: string | null,    // imgflip "Meme Generator" link (normalized to /memegenerator/); null when none
+  type: string[] | null,        // e.g. ["Exploitable", "Photoshop"]; null when absent
+  year: string | null,          // e.g. "2011"; null when absent
+  origin: string | null,        // e.g. "Tumblr"; null when absent
+  region: string | null,        // e.g. "United States"; null when absent
+  tags: string[] | null,        // entry tags; null when absent
 }
 ```
+
+**MemeSection Object:**
+```javascript
+{
+  title: string,      // heading text (e.g. "About", "Origin", "Spread")
+  level: number,      // normalized heading level: 2 = main (##), 3 = subsection (###)
+  contents: SectionBlock[]
+}
+```
+
+**SectionBlock (union):**
+```javascript
+{ type: 'text', text: string }                                  // inline markdown paragraph
+{ type: 'quote', text: string }                                 // blockquote
+{ type: 'image', url: string, alt: string, nsfw: boolean, pageUrl?: string }  // pageUrl = KnowYourMeme photo page; nsfw = true when hidden behind a click-to-view overlay
+{ type: 'video', url: string }                                  // YouTube / TikTok / Instagram / Tumblr link
+```
+
+The `body` field is markdown ready for renderers (e.g. Raycast's `Detail` view). Headings are normalized so main sections render as `##` and subsections as `###`, embedded videos become links, images keep their real URLs (including NSFW images that would otherwise be hidden behind a click-to-view overlay), and footnote references are stripped.
 
 ## Requirements
 
@@ -106,7 +141,7 @@ Gets detailed information about a specific meme.
 
 ## Dependencies
 
-- `axios`: HTTP client for making requests
+- `node-fetch`: lightweight HTTP client for making requests
 - `cheerio`: HTML parsing and manipulation
 
 ## Contributing

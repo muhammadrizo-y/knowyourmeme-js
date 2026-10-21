@@ -1,4 +1,4 @@
-# Know Your Meme JS
+# Know Your Meme JS.
 
 A scraper npm package to search and get information about memes from [KnowYourMeme.com](https://knowyourmeme.com/).
 
